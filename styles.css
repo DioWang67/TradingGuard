@@ -1,0 +1,650 @@
+/* =========================================
+   Risk Panel CSS (Defense Version - Fixed Layout)
+   適用於：Chrome Extension 注入環境
+   修復內容：
+   1. 加入 !important 對抗宿主網頁樣式
+   2. 增加 CSS Reset 防止樣式繼承
+   3. 強制文字斷行
+   4. [FIXED] 修復歷史紀錄超出面板的問題
+   ========================================= */
+
+/* 1. 全域防禦設定：針對面板內所有元素強制重置 */
+#ts-risk-panel,
+#ts-risk-panel * {
+    box-sizing: border-box !important;
+    font-family: 'Segoe UI', Roboto, sans-serif !important;
+    /* 防止繼承網頁怪異的 margin/padding */
+    outline: none;
+}
+
+/* 主面板 */
+#ts-risk-panel {
+    position: fixed !important;
+    /* 強制定位 */
+    top: 20px;
+    left: 20px;
+    width: 340px !important;
+    /* 限制最大寬度 */
+    max-width: 95vw !important;
+
+    /* [FIXED] 加上 overflow: hidden，像剪刀一樣把超出的部分切掉，防止凸出圓角 */
+    overflow: hidden !important;
+
+    height: auto;
+    background: #1e1e1e !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7) !important;
+    z-index: 2147483647 !important;
+    /* 使用最大整數，確保在最上層 */
+    user-select: none;
+
+    /* 高度控制 */
+    max-height: 90vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+
+    /* 字體重置 */
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    text-align: left !important;
+}
+
+#ts-risk-header {
+    padding: 12px !important;
+    background: #2d2d2d !important;
+    border-bottom: 1px solid #444 !important;
+    font-weight: bold !important;
+    cursor: move;
+    /* 因為外層有 overflow: hidden，這裡的圓角可以不用設，但保留也無妨 */
+    border-radius: 8px 8px 0 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    color: #ddd !important;
+    font-size: 14px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+}
+
+#ts-risk-content {
+    padding: 15px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    /* 禁止水平滾動 */
+    flex: 1 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+
+    /* [FIXED] 關鍵修正：改為 100% 以佔滿剩餘空間，防止 auto 把面板撐破 */
+    height: 100% !important;
+}
+
+/* 自定義滾動條 (Webkit) */
+#ts-risk-content::-webkit-scrollbar,
+#log-list::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+
+#ts-risk-content::-webkit-scrollbar-track,
+#log-list::-webkit-scrollbar-track {
+    background: #222 !important;
+}
+
+#ts-risk-content::-webkit-scrollbar-thumb,
+#log-list::-webkit-scrollbar-thumb {
+    background: #555 !important;
+    border-radius: 3px !important;
+}
+
+#ts-risk-content::-webkit-scrollbar-thumb:hover,
+#log-list::-webkit-scrollbar-thumb:hover {
+    background: #777 !important;
+}
+
+/* 檢查清單項目 */
+.ts-check-item {
+    display: flex !important;
+    align-items: flex-start !important;
+    /* 強制對齊頂部 */
+    margin-bottom: 8px !important;
+    font-size: 13px !important;
+    text-align: left !important;
+    color: #bbb !important;
+    cursor: pointer !important;
+    line-height: 1.4 !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+.ts-check-item span {
+    flex: 1 !important;
+    /* 強制文字換行，這是解決跑版的關鍵 */
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    display: block !important;
+}
+
+.ts-check-item:hover {
+    color: #fff !important;
+}
+
+.ts-check-item input {
+    margin: 3px 10px 0 0 !important;
+    /* 強制 margin */
+    accent-color: #2196F3 !important;
+    cursor: pointer !important;
+    width: 16px !important;
+    height: 16px !important;
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+    vertical-align: top !important;
+}
+
+/* 區塊標題 */
+.ts-section-title {
+    font-size: 11px !important;
+    color: #666 !important;
+    margin-top: 15px !important;
+    margin-bottom: 8px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    border-bottom: 1px solid #333 !important;
+    padding-bottom: 2px !important;
+    font-weight: bold !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    line-height: normal !important;
+}
+
+#clear-history-btn {
+    cursor: pointer;
+    font-size: 14px !important;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+#clear-history-btn:hover {
+    opacity: 1;
+    color: #ff5252 !important;
+}
+
+/* 輸入框排版 */
+.ts-calc-row {
+    display: flex !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+    width: 100% !important;
+}
+
+.ts-input-group {
+    flex: 1 !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    /* 清除外部干擾 */
+}
+
+.ts-input-group label {
+    display: block !important;
+    font-size: 11px !important;
+    color: #888 !important;
+    margin-bottom: 3px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: normal !important;
+}
+
+.ts-input-group input,
+.ts-input-group select {
+    width: 100% !important;
+    padding: 6px !important;
+    background: #2a2a2a !important;
+    border: 1px solid #444 !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+    height: 30px !important;
+    /* 固定高度防止扁掉 */
+    line-height: normal !important;
+    margin: 0 !important;
+}
+
+.ts-input-group input:focus,
+.ts-input-group select:focus {
+    border-color: #2196F3 !important;
+    outline: none !important;
+}
+
+/* 計算結果 */
+.calc-result {
+    background: #252525 !important;
+    padding: 8px !important;
+    border-radius: 4px !important;
+    margin-bottom: 5px !important;
+    font-size: 12px !important;
+    color: #aaa !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+}
+
+.result-highlight {
+    color: #4CAF50 !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+}
+
+.result-warning {
+    color: #ff9800 !important;
+    font-weight: bold !important;
+}
+
+/* 理由輸入框 */
+textarea#trade-reason {
+    width: 100% !important;
+    height: 45px !important;
+    min-height: 45px !important;
+    background: #2a2a2a !important;
+    border: 1px solid #444 !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    padding: 6px !important;
+    font-size: 13px !important;
+    resize: none !important;
+    font-family: inherit !important;
+    line-height: 1.4 !important;
+}
+
+textarea#trade-reason:focus {
+    border-color: #2196F3 !important;
+    outline: none !important;
+}
+
+/* 解鎖按鈕 */
+#ts-unlock-btn {
+    width: 100% !important;
+    padding: 12px !important;
+    margin-top: 15px !important;
+    background: #444 !important;
+    color: #888 !important;
+    border: none !important;
+    border-radius: 4px !important;
+    font-weight: bold !important;
+    cursor: not-allowed !important;
+    font-size: 14px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    height: auto !important;
+}
+
+#ts-unlock-btn.ready {
+    background: #2196F3 !important;
+    color: white !important;
+    cursor: pointer !important;
+}
+
+#ts-unlock-btn.unlocked {
+    background: #4CAF50 !important;
+    animation: pulse 1s infinite;
+}
+
+#ts-unlock-btn.cooldown {
+    background: #d32f2f !important;
+    color: white !important;
+    cursor: not-allowed !important;
+}
+
+/* 日誌區 */
+#ts-log-area {
+    margin-top: 15px !important;
+    border-top: 1px solid #333 !important;
+    padding-top: 10px !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    /* 關鍵修復：讓它可以被壓縮 */
+    overflow: hidden !important;
+    /* 防止整體超出 */
+}
+
+#log-list {
+    max-height: 200px !important;
+    /* 降低最大高度 */
+    min-height: 0 !important;
+    /* 允許收縮 */
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    padding-right: 2px !important;
+    flex-shrink: 1 !important;
+    /* 在空間不足時可壓縮 */
+
+    /* [FIXED] 確保內距計算正確，防止水平滾動 */
+    box-sizing: border-box !important;
+    display: block !important;
+}
+
+.log-entry {
+    font-size: 11px !important;
+    color: #aaa !important;
+    padding: 8px !important;
+    border-bottom: 1px solid #333 !important;
+    line-height: 1.4 !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    margin-bottom: 5px !important;
+    border-radius: 4px !important;
+    width: 100% !important;
+
+    /* 關鍵修復：針對 Extension 環境的強制換行 */
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+    display: block !important;
+}
+
+.log-time {
+    color: #666 !important;
+    font-size: 10px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-bottom: 4px !important;
+    width: 100% !important;
+}
+
+.log-reason {
+    color: #ddd !important;
+    width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+/* 檔案路徑顯示修復 */
+.log-file {
+    color: #4CAF50 !important;
+    font-size: 10px !important;
+    margin-top: 4px !important;
+    cursor: pointer !important;
+    padding: 2px 4px !important;
+    background: rgba(76, 175, 80, 0.1) !important;
+    border-radius: 3px !important;
+
+    display: block !important;
+    width: 100% !important;
+
+    /* 讓路徑不換行但顯示省略號 */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+}
+
+.log-file:hover {
+    background: rgba(76, 175, 80, 0.2) !important;
+}
+
+.log-actions {
+    display: flex !important;
+    gap: 5px !important;
+    margin-top: 6px !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+}
+
+.btn-outcome {
+    border: 1px solid #444 !important;
+    background: transparent !important;
+    color: #666 !important;
+    cursor: pointer !important;
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    border-radius: 3px !important;
+    flex-shrink: 0 !important;
+    min-width: 30px !important;
+    text-align: center !important;
+}
+
+.btn-outcome:hover {
+    border-color: #666 !important;
+    color: #aaa !important;
+}
+
+.btn-outcome.active.win {
+    background: #4CAF50 !important;
+    color: #fff !important;
+    border-color: #4CAF50 !important;
+}
+
+.btn-outcome.active.loss {
+    background: #ff5252 !important;
+    color: #fff !important;
+    border-color: #ff5252 !important;
+}
+
+.btn-outcome.active.draw {
+    background: #9e9e9e !important;
+    color: #fff !important;
+    border-color: #9e9e9e !important;
+}
+
+/* 遮罩層 */
+#ts-blocker-overlay {
+    position: fixed !important;
+    top: 200px;
+    right: 200px;
+    width: 260px !important;
+    height: 120px !important;
+    background: rgba(30, 30, 30, 0.95) !important;
+    border: 2px solid #ff5252 !important;
+    z-index: 2147483646 !important;
+    cursor: move;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    color: #ff5252 !important;
+    font-weight: bold !important;
+    font-size: 18px !important;
+    text-align: center !important;
+    backdrop-filter: blur(4px) !important;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+#ts-blocker-overlay.is-unlocked {
+    background: rgba(76, 175, 80, 0.05) !important;
+    border: 2px dashed #4CAF50 !important;
+    color: rgba(76, 175, 80, 0.8) !important;
+    pointer-events: none !important;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 縮小化按鈕 (FAB) */
+#ts-minimized-btn {
+    position: fixed !important;
+    bottom: 20px;
+    right: 20px;
+    width: 50px !important;
+    height: 50px !important;
+    background: #1e1e1e !important;
+    border: 2px solid #2196F3 !important;
+    border-radius: 50% !important;
+    color: #fff !important;
+    font-size: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    z-index: 2147483647 !important;
+}
+
+#ts-minimized-btn:hover {
+    transform: scale(1.1);
+    background: #2d2d2d !important;
+}
+
+#ts-minimized-btn.hidden,
+#ts-risk-panel.hidden,
+#ts-blocker-overlay.hidden {
+    display: none !important;
+}
+
+/* Settings View 樣式 */
+.ts-header-actions {
+    display: flex !important;
+    gap: 10px !important;
+}
+
+#ts-settings-btn {
+    cursor: pointer;
+    opacity: 0.7;
+    font-size: 16px !important;
+}
+
+#ts-settings-btn:hover {
+    opacity: 1;
+    transform: rotate(90deg);
+}
+
+.ts-view {
+    display: none !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    height: 100% !important;
+}
+
+.ts-view.active {
+    display: flex !important;
+}
+
+#ts-settings-view {
+    padding: 15px !important;
+    background: #222 !important;
+    overflow-y: auto !important;
+}
+
+.ts-settings-row {
+    margin-bottom: 15px !important;
+    border-bottom: 1px solid #333 !important;
+    padding-bottom: 15px !important;
+}
+
+.ts-settings-row h4 {
+    margin: 0 0 10px 0 !important;
+    color: #ddd !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+}
+
+.ts-settings-label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    font-size: 13px !important;
+    color: #ccc !important;
+}
+
+textarea#checklist-editor {
+    width: 100% !important;
+    height: 100px !important;
+    background: #1a1a1a !important;
+    color: #eee !important;
+    border: 1px solid #444 !important;
+    padding: 8px !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+    margin-top: 5px !important;
+    resize: vertical !important;
+    box-sizing: border-box !important;
+    max-height: 300px !important;
+    min-height: 60px !important;
+}
+
+.ts-btn-group {
+    display: flex !important;
+    gap: 10px !important;
+    margin-top: 20px !important;
+}
+
+.ts-btn-group button {
+    flex: 1 !important;
+    padding: 8px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-weight: bold !important;
+}
+
+.btn-primary {
+    background: #2196F3 !important;
+    color: white !important;
+}
+
+.btn-primary:hover {
+    background: #1976D2 !important;
+}
+
+.btn-secondary {
+    background: #444 !important;
+    color: #ccc !important;
+}
+
+.btn-secondary:hover {
+    background: #555 !important;
+}
+
+/* Stats 樣式 */
+#ts-stats-header {
+    background: #222 !important;
+    padding: 8px !important;
+    margin: 10px 0 !important;
+    border-radius: 4px !important;
+    border: 1px solid #333 !important;
+    display: flex !important;
+    justify-content: space-around !important;
+    font-size: 11px !important;
+    color: #aaa !important;
+    width: 100% !important;
+}
+
+.stat-item {
+    text-align: center !important;
+}
+
+.stat-val {
+    display: block !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    color: #fff !important;
+}
+
+.stat-val.win {
+    color: #4CAF50 !important;
+}
+
+.stat-val.loss {
+    color: #ff5252 !important;
+}
