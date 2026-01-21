@@ -4,8 +4,9 @@
 
     // --- 0. 基礎設定與常數 ---
     const HOST = window.location.hostname;
-    const TRADING_DOMAINS = ['topstep', 'tradovate', 'ninjatrader', 'tradingview', 'rtrader', 'quantower'];
-    const isTradingSite = TRADING_DOMAINS.some(d => HOST.includes(d));
+
+    // [REMOVED] Domain checks - always active
+    console.log("[TradingGuard] 初始化... (Global Mode)", { HOST });
 
     // 多語言字典 (I18n)
     const TRANSLATIONS = {
@@ -21,23 +22,15 @@
             'res_rr': '預期盈虧比 (R:R):',
             'journal_title': 'JOURNAL (紀錄)',
             'reason_ph': '進場理由 (例如: VWAP 回測)...',
-            'auto_ss_label': '解鎖/確認時自動截圖',
+            'auto_ss_label': '紀錄時自動截圖',
             'history_title': 'HISTORY',
-            'btn_locked': '⛔ 鎖定中',
             'btn_check': '⛔ 請完成檢查清單',
             'btn_risk': '⛔ 風險過高 / 停損太近',
             'btn_rr': '⛔ 盈虧比需 > 1',
             'btn_reason': '⛔ 請填寫理由',
-            'btn_ready_lock': '🔓 解鎖交易 (10秒)',
-            'btn_ready_confirm': '✅ 確認並紀錄',
-            'btn_active': '⚡ TRADING ACTIVE',
-            'btn_cooldown': '🧊 強制冷卻',
-            'protection_overlay': '🛡️ RISK GUARD',
-            'drag_hint': 'Drag to protect',
+            'btn_ready_confirm': '✅ 確認並紀錄', // Unified button text
             'settings_title': '設定 (Settings)',
             'lang_label': '語言 (Language)',
-            'lock_label': '硬式鎖定 (Hard Lock)',
-            'lock_desc': '啟用強制倒數與冷卻機制',
             'checklist_label': '自訂檢查清單 (每行一項)',
             'btn_save': '儲存 (Save)',
             'btn_cancel': '取消 (Cancel)',
@@ -59,23 +52,15 @@
             'res_rr': 'Reward/Risk (R:R):',
             'journal_title': 'TRADE JOURNAL',
             'reason_ph': 'Entry reason (e.g., VWAP bounce)...',
-            'auto_ss_label': 'Auto Screenshot on Action',
+            'auto_ss_label': 'Auto Screenshot on Record',
             'history_title': 'HISTORY',
-            'btn_locked': '⛔ LOCKED',
             'btn_check': '⛔ Complete Checklist',
             'btn_risk': '⛔ High Risk / Tight SL',
             'btn_rr': '⛔ R:R must be > 1',
             'btn_reason': '⛔ Enter Reason',
-            'btn_ready_lock': '🔓 UNLOCK (10s)',
-            'btn_ready_confirm': '✅ CONFIRM & LOG',
-            'btn_active': '⚡ TRADING ACTIVE',
-            'btn_cooldown': '🧊 COOLDOWN',
-            'protection_overlay': '🛡️ RISK GUARD',
-            'drag_hint': 'Drag to protect',
+            'btn_ready_confirm': '✅ CONFIRM & LOG', // Unified button text
             'settings_title': 'SETTINGS',
             'lang_label': 'Language',
-            'lock_label': 'Hard Lock Mechanism',
-            'lock_desc': 'Enable countdown timer and forced cooldown',
             'checklist_label': 'Custom Checklist (One per line)',
             'btn_save': 'Save',
             'btn_cancel': 'Cancel',
@@ -95,7 +80,6 @@
 
     const DEFAULT_SETTINGS = {
         lang: 'zh-TW', // 或根據 navigator.language 判斷
-        enableLock: true,
         checklist: [
             "大趨勢方向一致 (Trend Aligned)",
             "無重大新聞 (No High Impact News)",
@@ -105,27 +89,27 @@
 
     // 當前狀態
     let appSettings = { ...DEFAULT_SETTINGS };
-    let isCooldown = false;
-    let unlockTimer = null;
-    let cooldownTimer = null;
     let cachedLogs = []; // Cache log data for stats calc
+    let isVisible = true; // Default visible
 
     // --- 1. 建立 UI 結構 ---
 
-    // A. FAB
+    // A. FAB (Floating Action Button) - used to restore when minimized
     const fab = document.createElement('div');
     fab.id = 'ts-minimized-btn';
     fab.innerHTML = '🛡️';
     fab.title = 'Open TradingGuard';
-    if (isTradingSite) fab.classList.add('hidden');
+    fab.classList.add('hidden'); // Initially hidden if panel is shown
     document.body.appendChild(fab);
 
     // B. Panel
     const panel = document.createElement('div');
     panel.id = 'ts-risk-panel';
-    if (!isTradingSite) panel.classList.add('hidden');
+    // Remove hidden class by default, or keep it depending on desired startup behavior. 
+    // Let's keep it visible by default as requested "don't specify webpage".
 
     // HTML 結構 (主畫面 + 設定畫面)
+    // [MODIFIED] Removed Lock Settings
     const panelContent = `
         <div id="ts-risk-header">
             <span data-i18n="title">TradingGuard 🛡️ Universal</span>
@@ -196,7 +180,6 @@
                         <span id="clear-history-btn" title="Clear All History">🗑️</span>
                     </div>
                     
-                    <!-- 統計資訊看板 (V3.4) -->
                     <div id="ts-stats-header">
                         <div class="stat-item">
                             <label data-i18n="stat_win">Win Rate</label>
@@ -211,6 +194,8 @@
                     <div id="log-list" style="font-size:10px; color:#666; text-align:center; padding:10px;">...</div>
                 </div>
             </div>
+            <!-- Resize Handle (Visual only, CSS does the work via resize:both) -->
+            <!-- <div class="ts-resize-handle"></div> --> 
         </div>
 
         <!-- 設定畫面 -->
@@ -225,13 +210,7 @@
                 </select>
             </div>
 
-            <div class="ts-settings-row">
-                <div class="ts-settings-label">
-                    <span data-i18n="lock_label">Hard Lock</span>
-                    <input type="checkbox" id="setting-lock-toggle">
-                </div>
-                <div style="font-size:10px; color:#888; margin-top:5px;" data-i18n="lock_desc">Enable countdown...</div>
-            </div>
+            <!-- Removed Hard Lock Setting -->
 
             <div class="ts-settings-row">
                 <h4 data-i18n="checklist_label">Custom Checklist</h4>
@@ -247,13 +226,6 @@
 
     panel.innerHTML = panelContent;
     document.body.appendChild(panel);
-
-    // C. Blocker
-    const blocker = document.createElement('div');
-    blocker.id = 'ts-blocker-overlay';
-    blocker.innerHTML = `<span id="blocker-text">🛡️ RISK GUARD</span><br><small id="blocker-hint" style="font-size:12px; color:#aaa; font-weight:normal;">Drag to protect</small><div class="ts-resize-handle"></div>`;
-    if (!isTradingSite) blocker.classList.add('hidden');
-    document.body.appendChild(blocker);
 
     // --- 2. 初始化與邏輯 ---
 
@@ -276,19 +248,13 @@
         logList: document.getElementById('log-list'),
         clearBtn: document.getElementById('clear-history-btn'),
 
-        // Stats (V3.4)
         statWinRate: document.getElementById('val-win-rate'),
         statWLCount: document.getElementById('val-wl-count'),
 
-        // Settings Inputs
         sLang: document.getElementById('setting-lang'),
-        sLock: document.getElementById('setting-lock-toggle'),
         sChecklist: document.getElementById('checklist-editor'),
         btnSave: document.getElementById('btn-save-settings'),
         btnCancel: document.getElementById('btn-cancel-settings'),
-        // Blocker
-        bText: document.getElementById('blocker-text'),
-        bHint: document.getElementById('blocker-hint')
     };
 
     // 載入設定 -> 渲染 UI
@@ -297,6 +263,7 @@
     function loadSettings() {
         chrome.storage.sync.get(['tg_settings'], (res) => {
             if (res.tg_settings) {
+                // Merge, ignoring old lock setting
                 appSettings = { ...DEFAULT_SETTINGS, ...res.tg_settings };
             }
             renderApp();
@@ -314,8 +281,6 @@
             el.textContent = t(el.dataset.i18n);
         });
         ui.reasonInput.placeholder = t('reason_ph');
-        ui.bText.textContent = t('protection_overlay');
-        ui.bHint.textContent = t('drag_hint');
 
         // 2. 渲染 Checkbox
         ui.checklistContainer.innerHTML = '';
@@ -331,21 +296,8 @@
             cb.addEventListener('change', checkStatus);
         });
 
-        // 3. 更新 Blocker 狀態
-        updateBlockerVisibility();
-
-        // 4. 更新狀態檢查
+        // 3. 更新狀態檢查
         checkStatus();
-    }
-
-    function updateBlockerVisibility() {
-        if (appSettings.enableLock) {
-            if (!panel.classList.contains('hidden')) {
-                blocker.classList.remove('hidden');
-            }
-        } else {
-            blocker.classList.add('hidden');
-        }
     }
 
     // --- 計算與狀態檢查 ---
@@ -389,8 +341,6 @@
     }
 
     function checkStatus() {
-        if (isCooldown) return;
-
         const { rrValid, qty } = updateCalc();
         const allChecked = Array.from(document.querySelectorAll('.ts-chk-dynamic')).every(cb => cb.checked);
         const reason = ui.reasonInput.value.trim();
@@ -401,7 +351,8 @@
         if (allChecked && rrValid && qty > 0 && reasonValid) {
             btn.disabled = false;
             btn.classList.add('ready');
-            btn.textContent = appSettings.enableLock ? t('btn_ready_lock') : t('btn_ready_confirm');
+            // Always show Confirm & Log, as mechanism is removed
+            btn.textContent = t('btn_ready_confirm');
         } else {
             btn.disabled = true;
             btn.classList.remove('ready');
@@ -421,7 +372,6 @@
         ui.settingsView.classList.add('active');
         // Populate Settings
         ui.sLang.value = appSettings.lang;
-        ui.sLock.checked = appSettings.enableLock;
         ui.sChecklist.value = appSettings.checklist.join('\n');
     });
 
@@ -432,13 +382,12 @@
 
     ui.btnSave.addEventListener('click', () => {
         const newLang = ui.sLang.value;
-        const newLock = ui.sLock.checked;
         const newChecklist = ui.sChecklist.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
         appSettings = {
             lang: newLang,
-            enableLock: newLock,
             checklist: newChecklist.length > 0 ? newChecklist : DEFAULT_SETTINGS.checklist
+            // No lock setting
         };
 
         chrome.storage.sync.set({ tg_settings: appSettings });
@@ -448,24 +397,28 @@
         ui.mainView.classList.add('active');
     });
 
-    // 最小化 / 展開
+    // 最小化 / 展開 / Toggle Logic
     function togglePanel(show) {
+        isVisible = show;
         if (show) {
             panel.classList.remove('hidden');
-            if (appSettings.enableLock) blocker.classList.remove('hidden');
-            else blocker.classList.add('hidden');
             fab.classList.add('hidden');
         } else {
             panel.classList.add('hidden');
-            blocker.classList.add('hidden');
             fab.classList.remove('hidden');
         }
     }
     fab.addEventListener('click', () => togglePanel(true));
     ui.minActionBtn.addEventListener('click', () => togglePanel(false));
 
+    // Listen for background toggle command
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === "TOGGLE_UI") {
+            togglePanel(!isVisible);
+        }
+    });
 
-    // --- 核心按鈕邏輯 ---
+    // --- 核心按鈕邏輯 (Simplified) ---
     ui.unlockBtn.addEventListener('click', () => {
         const now = new Date();
         const timestampId = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
@@ -476,10 +429,11 @@
         const qtyMatch = ui.resQty.textContent.match(/^(\d+)/);
         const qty = qtyMatch ? qtyMatch[1] : '0';
 
-        // 1. 截圖 (延遲以避開閃光)
+        // 1. 截圖
         let screenshotFilename = null;
         if (ui.autoSsCb && ui.autoSsCb.checked) {
             screenshotFilename = `TradingLogs/${timestampId}_${symbol}.png`;
+            // Visual Flash
             const flash = document.createElement('div');
             flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;opacity:0.6;z-index:9999999;pointer-events:none;transition:opacity 0.3s;';
             document.body.appendChild(flash);
@@ -494,7 +448,7 @@
             }, 400);
         }
 
-        // 2. 紀錄 (fields: result = null)
+        // 2. 紀錄
         const newLog = {
             id: timestampId, timeDisplay, symbol, qty, risk, reason,
             screenshot: screenshotFilename,
@@ -505,82 +459,30 @@
             logs.unshift(newLog);
             if (logs.length > 50) logs.pop();
             chrome.storage.local.set({ ts_logs: logs });
-            // 更新本地緩存與UI
             cachedLogs = logs;
             renderAllLogs();
         });
 
-        // 3. 行為 (鎖定 vs 純確認)
-        if (appSettings.enableLock) {
-            blocker.classList.add('is-unlocked');
-            blocker.classList.remove('hidden');
-            ui.bText.textContent = t('btn_active');
+        // 3. 視覺回饋與重置
+        const originalText = ui.unlockBtn.textContent;
+        ui.unlockBtn.textContent = "OK!";
+        ui.unlockBtn.style.background = '#4CAF50';
+        ui.unlockBtn.style.color = '#fff';
+        ui.unlockBtn.disabled = true;
 
-            ui.unlockBtn.classList.add('unlocked');
-            ui.unlockBtn.disabled = true;
-            disableInputs(true);
-
-            let timeLeft = 10;
-            ui.unlockBtn.textContent = `${t('btn_active')} (${timeLeft}s)`;
-            unlockTimer = setInterval(() => {
-                timeLeft--;
-                ui.unlockBtn.textContent = `${t('btn_active')} (${timeLeft}s)`;
-                if (timeLeft <= 0) startCooldown();
-            }, 1000);
-        } else {
-            const originalText = ui.unlockBtn.textContent;
-            ui.unlockBtn.textContent = t('btn_ready_confirm') + " OK!";
-            ui.unlockBtn.style.background = '#4CAF50';
-            ui.unlockBtn.style.color = '#fff';
-            ui.unlockBtn.disabled = true;
-
-            setTimeout(() => {
-                resetSystem(); // 重置輸入
-            }, 1500);
-        }
+        setTimeout(() => {
+            resetSystem();
+        }, 1000);
     });
 
-    function startCooldown() {
-        clearInterval(unlockTimer);
-        isCooldown = true;
-
-        blocker.classList.remove('is-unlocked');
-        ui.bText.textContent = t('btn_cooldown');
-
-        ui.unlockBtn.classList.remove('unlocked');
-        ui.unlockBtn.classList.remove('ready');
-        ui.unlockBtn.classList.add('cooldown');
-
-        let coolTime = 10;
-        ui.unlockBtn.textContent = `${t('btn_cooldown')} (${coolTime}s)`;
-        cooldownTimer = setInterval(() => {
-            coolTime--;
-            ui.unlockBtn.textContent = `${t('btn_cooldown')} (${coolTime}s)`;
-            if (coolTime <= 0) resetSystem();
-        }, 1000);
-    }
-
     function resetSystem() {
-        if (cooldownTimer) clearInterval(cooldownTimer);
-        isCooldown = false;
-
-        ui.unlockBtn.classList.remove('cooldown');
         ui.unlockBtn.style.background = '';
         ui.unlockBtn.style.color = '';
-        ui.bText.innerHTML = t('protection_overlay');
-        updateBlockerVisibility();
-        blocker.classList.remove('is-unlocked');
 
-        disableInputs(false);
+        // Clear non-persistent inputs
         document.querySelectorAll('.ts-chk-dynamic').forEach(cb => cb.checked = false);
         ui.reasonInput.value = '';
         checkStatus();
-    }
-
-    function disableInputs(disabled) {
-        const inputs = [ui.symbolSelect, ui.riskInput, ui.slInput, ui.tpInput, ui.reasonInput, ui.autoSsCb];
-        inputs.forEach(el => el.disabled = disabled);
-        document.querySelectorAll('.ts-chk-dynamic').forEach(cb => cb.disabled = disabled);
     }
 
     // --- 日誌與工具邏輯 ---
@@ -592,10 +494,7 @@
     }
 
     function renderAllLogs() {
-        // 更新統計
         updateStats();
-
-        // 渲染列表
         ui.logList.innerHTML = '';
         if (cachedLogs.length === 0) {
             ui.logList.innerHTML = '<div style="font-size:10px; color:#666; text-align:center; padding:10px;">(No History)</div>';
@@ -614,8 +513,6 @@
         });
         totalClosed = wins + losses + draws;
 
-        // 勝率 = Win / Total Closed (平手通常不計入分母，或視為沒輸? 這裡採用 Win/(Win+Loss) 或 Win/Total)
-        // 簡單起見： Win Rate = Win / (Win + Loss)
         let wr = 0;
         const meaningfulTrades = wins + losses;
         if (meaningfulTrades > 0) {
@@ -625,7 +522,6 @@
         ui.statWinRate.textContent = totalClosed > 0 ? `${wr}%` : '-%';
         ui.statWLCount.textContent = `${wins}W ${losses}L ${draws}D`;
 
-        // Color coding
         ui.statWinRate.className = 'stat-val ' + (wr >= 50 ? 'win' : (meaningfulTrades > 0 ? 'loss' : ''));
     }
 
@@ -643,8 +539,6 @@
         if (log) {
             log.reason = newReason;
             chrome.storage.local.set({ ts_logs: cachedLogs });
-            // Don't re-render everything to keep focus if needed, but here simple re-render is safer
-            // renderAllLogs(); 
         }
     }
 
@@ -663,7 +557,6 @@
         const fileDisplay = log.screenshot ?
             `<div class="log-file" title="Click to Copy Path" data-file="${log.screenshot}">📷 ${log.screenshot.split('/').pop()}</div>` : '';
 
-        // V3.4: Outcome Buttons
         const activeClass = (res) => log.result === res ? `active ${res}` : '';
 
         entry.innerHTML = `
@@ -680,7 +573,6 @@
             </div>
         `;
 
-        // Copy Event
         if (log.screenshot) {
             entry.querySelector('.log-file').addEventListener('click', function () {
                 const fullPath = "Downloads/" + this.dataset.file;
@@ -689,17 +581,14 @@
             });
         }
 
-        // Outcome Events
         entry.querySelectorAll('.btn-outcome').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const res = e.target.dataset.res;
-                // Toggle off if clicking same
                 const newRes = (log.result === res) ? null : res;
                 updateLogResult(log.id, newRes);
             });
         });
 
-        // Edit Reason Event
         const reasonDiv = entry.querySelector('.log-reason');
         reasonDiv.addEventListener('click', () => {
             const newText = prompt("Edit Note:", log.reason);
@@ -709,10 +598,7 @@
             }
         });
 
-        ui.logList.appendChild(entry); // Append to bottom? No, logs usually DESC.
-        // But logic above was insertBefore main logList logic. Let's fix order.
-        // Logic `cachedLogs.forEach` iterates 0..N. 0 is newest.
-        // So simple appendChild works if we clear logs first.
+        ui.logList.appendChild(entry);
     }
 
     // 拖曳邏輯
@@ -720,22 +606,20 @@
         let isDragging = false, startX, startY, initialLeft, initialTop;
         handle.addEventListener('mousedown', (e) => {
             if (['ts-settings-btn', 'ts-minimize-action', 'clear-history-btn'].includes(e.target.id)) return;
-            // Prevent drag when clicking outcomes
             if (e.target.classList.contains('btn-outcome')) return;
-
-            if (e.target.classList.contains('ts-resize-handle')) return;
+            // Allow drag on header
             isDragging = true; startX = e.clientX; startY = e.clientY;
             initialLeft = element.offsetLeft; initialTop = element.offsetTop;
             element.style.cursor = 'grabbing';
+            e.preventDefault(); // Prevent text selection
         });
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             element.style.left = `${initialLeft + e.clientX - startX}px`;
             element.style.top = `${initialTop + e.clientY - startY}px`;
         });
-        document.addEventListener('mouseup', () => { isDragging = false; element.style.cursor = 'move'; });
+        document.addEventListener('mouseup', () => { isDragging = false; element.style.cursor = 'default'; });
     }
     makeDraggable(panel, document.getElementById('ts-risk-header'));
-    makeDraggable(blocker, blocker);
 
 })();

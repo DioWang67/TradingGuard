@@ -27,8 +27,11 @@
     /* 限制最大寬度 */
     max-width: 95vw !important;
 
-    /* [FIXED] 加上 overflow: hidden，像剪刀一樣把超出的部分切掉，防止凸出圓角 */
-    overflow: hidden !important;
+    /* Resizable */
+    resize: both !important;
+    overflow: hidden !important; /* Keep rounded corners but handle actual content overflow in inner div */
+    min-width: 300px !important;
+    min-height: 400px !important;
 
     height: auto;
     background: #1e1e1e !important;
@@ -37,11 +40,11 @@
     border-radius: 8px !important;
     box-shadow: 0 4px 25px rgba(0, 0, 0, 0.7) !important;
     z-index: 2147483647 !important;
-    /* 使用最大整數，確保在最上層 */
     user-select: none;
 
-    /* 高度控制 */
-    max-height: 90vh !important;
+    /* Max height constraint - allow user to resize larger but keep within viewport */
+    max-height: 95vh !important;
+    max-width: 95vw !important;
     display: flex !important;
     flex-direction: column !important;
 
@@ -49,6 +52,13 @@
     font-size: 14px !important;
     line-height: 1.4 !important;
     text-align: left !important;
+}
+
+/* Add custom resize handle style if needed or rely on browser default */
+#ts-risk-panel::-webkit-resizer {
+    background-color: transparent;
+    border-bottom: 2px solid #555;
+    border-right: 2px solid #555;
 }
 
 #ts-risk-header {
@@ -76,9 +86,9 @@
     flex: 1 !important;
     min-height: 0 !important;
     width: 100% !important;
-
-    /* [FIXED] 關鍵修正：改為 100% 以佔滿剩餘空間，防止 auto 把面板撐破 */
     height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 /* 自定義滾動條 (Webkit) */
@@ -317,18 +327,11 @@ textarea#trade-reason:focus {
 }
 
 #log-list {
-    max-height: 200px !important;
-    /* 降低最大高度 */
-    min-height: 0 !important;
-    /* 允許收縮 */
+    flex: 1 !important; /* Grow to fill space */
+    min-height: 100px !important; /* Minimum height */
     overflow-y: auto !important;
-    overflow-x: hidden !important;
     width: 100% !important;
     padding-right: 2px !important;
-    flex-shrink: 1 !important;
-    /* 在空間不足時可壓縮 */
-
-    /* [FIXED] 確保內距計算正確，防止水平滾動 */
     box-sizing: border-box !important;
     display: block !important;
 }

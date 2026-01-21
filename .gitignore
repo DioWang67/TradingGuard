@@ -20,6 +20,7 @@ build/
 Thumbs.db
 *.log
 
+
 # Chrome Extension
 *.crx
 *.pem
@@ -27,3 +28,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# User Data
+TradingLogs/
