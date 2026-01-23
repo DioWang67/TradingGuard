@@ -261,13 +261,20 @@
     loadSettings();
 
     function loadSettings() {
+        // Load Settings (Sync)
         chrome.storage.sync.get(['tg_settings'], (res) => {
             if (res.tg_settings) {
-                // Merge, ignoring old lock setting
                 appSettings = { ...DEFAULT_SETTINGS, ...res.tg_settings };
             }
             renderApp();
             loadSavedLogs();
+        });
+
+        // Load Visibility State (Local)
+        chrome.storage.local.get(['tg_ui_visible'], (res) => {
+            // Default to true if not set
+            const shouldBeVisible = res.tg_ui_visible !== undefined ? res.tg_ui_visible : true;
+            togglePanel(shouldBeVisible, false); // false = don't save again
         });
     }
 
@@ -398,7 +405,7 @@
     });
 
     // 最小化 / 展開 / Toggle Logic
-    function togglePanel(show) {
+    function togglePanel(show, save = true) {
         isVisible = show;
         if (show) {
             panel.classList.remove('hidden');
@@ -406,6 +413,10 @@
         } else {
             panel.classList.add('hidden');
             fab.classList.remove('hidden');
+        }
+
+        if (save) {
+            chrome.storage.local.set({ tg_ui_visible: show });
         }
     }
     fab.addEventListener('click', () => togglePanel(true));

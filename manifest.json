@@ -2,15 +2,13 @@
   "manifest_version": 3,
   "name": "TradingGuard",
   "version": "3.6.0",
-  "description": "強制執行交易紀律、部位計算與自動截圖日誌",
+  "description": "更快速的通用型交易日誌與風控計算機。支援所有網頁，懸浮視窗隨處紀錄、自動截圖。",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
     "128": "icon128.png"
   },
   "permissions": [
-    "activeTab",
-    "scripting",
     "downloads",
     "storage"
   ],
